@@ -1,7 +1,5 @@
-// components/RelaxButton.tsx
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
-import { theme } from '../styles/theme';
 
 interface Props {
   onPress: () => void;

@@ -5,25 +5,50 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/HushlyLogo1.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "scheme": "hushly",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/HushlyLogo1.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#141D2A"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.hushly.mobileapp"
     },
     "android": {
+      "package": "com.hushly.mobileapp",
+      "googleServicesFile": "./android/app/google-services.json",
+      "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true
+        "foregroundImage": "./assets/HushlyLogo2.png",
+        "backgroundColor": "#141D2A"
+      }
+    },
+    "androidStatusBar": {
+      "barStyle": "light-content",
+      "backgroundColor": "#141D2A",
+      "translucent": true
+    },
+    "androidNavigationBar": {
+      "barStyle": "light-content",
+      "backgroundColor": "#141D2A"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-font",
+      "@react-native-firebase/app",
+      "@react-native-google-signin/google-signin",
+      "expo-build-properties"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ee5d0e7a-1aed-4573-90bc-8f2c1bd31141"
+      }
     }
   }
 }

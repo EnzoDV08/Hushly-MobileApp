@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "433413816515",
+    "project_id": "hushly-mobile",
+    "storage_bucket": "hushly-mobile.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:433413816515:android:e00523f49c2872ea14a276",
+        "android_client_info": {
+          "package_name": "com.hushly.mobileapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "433413816515-klmo9hb11sk602dqf8fcm2sq0fvh65as.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCZauprX4p9D3wLm_dUgR1CsRAubQxFQMY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "433413816515-24huv8bpp5cb8hqji4gfd1on95mq3ua0.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

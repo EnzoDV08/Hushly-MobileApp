@@ -1,7 +1,5 @@
-// components/SensorFeedback.tsx
 import React from 'react';
 import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
-import { theme } from '../styles/theme';
 
 export default function SensorFeedback() {
   return (
@@ -13,6 +11,10 @@ export default function SensorFeedback() {
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: 'center', marginVertical: 20 },
-  text: { marginTop: 10, fontSize: 16 }
+  container: { 
+    alignItems: 'center', 
+    marginVertical: 20 },
+  text: { 
+    marginTop: 10, 
+    fontSize: 16 }
 });

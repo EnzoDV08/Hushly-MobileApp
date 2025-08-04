@@ -56,9 +56,28 @@ export default function SessionHistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background, padding: 20 },
-  title: { fontSize: theme.fontSize.large, textAlign: 'center', marginBottom: 20, color: theme.colors.primary },
-  card: { backgroundColor: '#f2f2f2', padding: 15, borderRadius: 10, marginBottom: 15 },
-  mood: { fontSize: 18, fontWeight: 'bold', marginBottom: 5 },
-  details: { fontSize: 14 },
+  container: { 
+    flex: 1,
+    backgroundColor: theme.colors.background,
+    padding: 20 
+  },
+  title: { 
+    fontSize: theme.fontSize.large,
+    textAlign: 'center',
+    marginBottom: 20,
+    color: theme.colors.primary 
+  },
+  card: { 
+    backgroundColor: '#f2f2f2', 
+    padding: 15, 
+    borderRadius: 10,
+    marginBottom: 15 },
+  mood: { 
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    marginBottom: 5 
+  },
+  details: { 
+    fontSize: 14 
+  },
 });

@@ -1,7 +1,5 @@
-// components/Header.tsx
 import React from 'react';
 import { Text, StyleSheet } from 'react-native';
-import { theme } from '../styles/theme';
 
 interface Props {
   title: string;

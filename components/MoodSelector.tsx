@@ -1,7 +1,5 @@
-// components/MoodSelector.tsx
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { theme } from '../styles/theme';
 
 const moods = [
   { emoji: '😊', label: 'Happy' },
@@ -31,10 +29,26 @@ export default function MoodSelector({ onSelect }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { marginTop: 30 },
-  title: { fontSize: 18, textAlign: 'center', marginBottom: 12 },
-  moodRow: { flexDirection: 'row', justifyContent: 'space-around' },
-  mood: { alignItems: 'center' },
-  emoji: { fontSize: 32 },
-  label: { fontSize: 14, marginTop: 4 }
+  container: { 
+    marginTop: 30 
+  },
+  title: { 
+    fontSize: 18, 
+    textAlign: 'center', 
+    marginBottom: 12 
+  },
+  moodRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-around' 
+  },
+  mood: { 
+    alignItems: 'center' 
+  },
+  emoji: { 
+    fontSize: 32 
+  },
+  label: { 
+    fontSize: 14, 
+    marginTop: 4 
+  }
 });

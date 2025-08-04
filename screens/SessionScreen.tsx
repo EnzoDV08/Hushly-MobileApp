@@ -5,14 +5,12 @@ import { db, auth } from '../firebase/firebaseConfig';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { useShakeToRelax } from '../hooks/useShakeToRelax';
 import MoodSelector from '../components/MoodSelector';
-import { theme } from '../styles/theme';
 
 export default function SessionScreen() {
   const [isRelaxing, setIsRelaxing] = useState(false);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [mood, setMood] = useState<string | null>(null);
 
-  // Called when shake is detected
   const startRelaxing = async () => {
     setIsRelaxing(true);
     try {
@@ -27,7 +25,6 @@ export default function SessionScreen() {
     }
   };
 
-  // Use shake-to-relax hook
   useShakeToRelax(() => {
     if (!isRelaxing) startRelaxing();
   });
@@ -44,7 +41,7 @@ export default function SessionScreen() {
         userId: user.uid,
         mood: mood,
         timestamp: Timestamp.now(),
-        duration: 2 // placeholder duration
+        duration: 2 
       });
     }
 
@@ -78,8 +75,24 @@ export default function SessionScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: '#fff' },
-  title: { fontSize: 24, textAlign: 'center', marginBottom: 16 },
-  info: { fontSize: 16, textAlign: 'center', marginBottom: 30 },
-  waiting: { textAlign: 'center', fontSize: 18, color: '#3CB87B' },
+  container: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    padding: 20, 
+    backgroundColor: '#fff' 
+  },
+  title: { 
+    fontSize: 24,
+    textAlign: 'center', 
+    marginBottom: 16 
+  },
+  info: { 
+    fontSize: 16, 
+    textAlign: 'center', 
+    marginBottom: 30 },
+  waiting: { 
+    textAlign: 'center', 
+    fontSize: 18, 
+    color: '#3CB87B' 
+  },
 });
