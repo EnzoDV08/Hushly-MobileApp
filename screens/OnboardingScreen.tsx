@@ -3,13 +3,11 @@ import { Dimensions, Image, ImageBackground, NativeScrollEvent, NativeSyntheticE
 import Animated, { Easing, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withSequence, withTiming, withRepeat, SharedValue, Extrapolate, runOnJS } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
-import { auth, db } from '../firebase/firebaseConfig';
 import Constants from 'expo-constants';
-WebBrowser.maybeCompleteAuthSession();
+
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import auth from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
 
 
 const { width } = Dimensions.get('window');
@@ -29,6 +27,10 @@ const slides: Slide[] = [
   { key: '2', title: 'Find Your Calm', description: 'Ambient sounds and breathing exercises.', image: require('../assets/illustration2.png') },
   { key: '3', title: 'Stay Balanced', description: 'Track your mood and sleep easily.', image: require('../assets/illustration1.png') },
 ];
+
+GoogleSignin.configure({
+  webClientId: '433413816515-klmo9hb11sk602dqf8fcm2sq0fvh65as.apps.googleusercontent.com',
+});
 
 const SlideItem = memo(function SlideItem({
   item, index, scrollX,
@@ -65,6 +67,7 @@ const SlideItem = memo(function SlideItem({
 export default function OnboardingScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const [index, setIndex] = useState(0);
+  const listRef = useRef<Animated.FlatList<Slide>>(null);
 
   const [currentTextIndex, setCurrentTextIndex] = useState(0);
   const [incomingTextIndex, setIncomingTextIndex] = useState<number | null>(null);
@@ -85,56 +88,6 @@ export default function OnboardingScreen({ navigation }: any) {
     opacity: incOpacity.value,
     transform: [{ translateY: incY.value }, { scale: 0.98 + incOpacity.value * 0.02 }],
 }));
-
-  const listRef = useRef<Animated.FlatList<Slide>>(null);
-  const EXTRA = Constants.expoConfig?.extra as any;
-
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: EXTRA?.GOOGLE_WEB_CLIENT_ID,
-    androidClientId: EXTRA?.GOOGLE_ANDROID_CLIENT_ID, 
-    webClientId: EXTRA?.GOOGLE_WEB_CLIENT_ID,
-});
- 
-  useEffect(() => {
-    const run = async () => {
-      if (response?.type !== 'success') return;
-
-      const idToken = response.authentication?.idToken ?? null;
-      const accessToken = response.authentication?.accessToken ?? null;
-
-const credential = GoogleAuthProvider.credential(idToken, accessToken);
-const result = await signInWithCredential(auth, credential);
-const user = result.user;
-if (!user) return;
-
-const ref  = doc(db, 'users', user.uid);
-const snap = await getDoc(ref);
-
-const base = {
-  uid: user.uid,
-  email: user.email ?? null,
-  displayName: user.displayName ?? null,
-  photoURL: user.photoURL ?? null,
-  provider: user.providerData?.[0]?.providerId ?? 'google.com',
-  updatedAt: serverTimestamp(),
-};
-
-if (!snap.exists()) {
-  await setDoc(ref, {
-    ...base,
-    createdAt: serverTimestamp(),
-    role: 'user',
-    points: 0,
-  });
-} else {
-  await setDoc(ref, base, { merge: true });
-}
-
-      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
-    };
-
-    run().catch(console.error);
-  }, [response, navigation]);
 
   const glow = useSharedValue(1);
 useEffect(() => {
@@ -209,13 +162,51 @@ const onMomentumEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
   const active = slides[index];
   const glowTop = insets.top + TOP_OFFSET + (HERO_HEIGHT - GLOW_SIZE) / 2;
 
-  const handleGoogleSignIn = async () => {
-    try {
-      await promptAsync(); 
-    } catch (e) {
-      console.error(e);
+
+const handleGoogleSignIn = async () => {
+  try {
+    await GoogleSignin.hasPlayServices();
+    const result = await GoogleSignin.signIn();
+    const idToken = (result as any).idToken;   
+    if (!idToken) throw new Error('No ID token from Google Sign-in');
+
+    const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+    const userCredential = await auth().signInWithCredential(googleCredential);
+    const user = userCredential.user;
+
+    if (!user) {
+      console.warn('Google sign-in succeeded but no user was returned.');
+      return;
     }
-  };
+
+    // Write/update user doc in Firestore
+    const userRef = firestore().collection('users').doc(user.uid);
+    const userSnap = await userRef.get();
+    const userData = {
+      uid: user.uid,
+      email: user.email ?? null,
+      displayName: user.displayName ?? null,
+      photoURL: user.photoURL ?? null,
+      provider: user.providerData?.[0]?.providerId ?? 'google.com',
+      updatedAt: firestore.FieldValue.serverTimestamp(),
+    };
+    if (!userSnap.exists) {
+      await userRef.set({
+        ...userData,
+        createdAt: firestore.FieldValue.serverTimestamp(),
+        role: 'user',
+        points: 0,
+      });
+    } else {
+      await userRef.set(userData, { merge: true });
+    }
+    navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+
+  } catch (e) {
+    console.error('Google Sign-in Error:', e);
+    // Add any extra error handling here
+  }
+};
 
   return (
 <View style={styles.container}>
@@ -290,14 +281,11 @@ const onMomentumEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
   </Animated.View>
 </View>
 
-  <TouchableOpacity
-            style={[styles.googleBtn, !request && { opacity: 0.6 }]}
-            onPress={handleGoogleSignIn}
-            disabled={!request}
-          >
-            <Image source={require('../assets/google.png')} style={styles.googleLogo} />
-            <Text style={styles.googleText}>Continue with Google</Text>
-          </TouchableOpacity>
+<TouchableOpacity style={styles.googleBtn} onPress={handleGoogleSignIn}>
+  <Image source={require('../assets/google.png')} style={styles.googleLogo} />
+  <Text style={styles.googleText}>Continue with Google</Text>
+</TouchableOpacity>
+
 
 <TouchableOpacity
   style={styles.primaryBtn}

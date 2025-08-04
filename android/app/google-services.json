@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "433413816515-mv56jvjlomopvh911bjgfisfb3ggg1pp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.hushly.mobileapp",
+            "certificate_hash": "921ed5f4d1d4537fbd549717a0c03f47a1e84231"
+          }
+        },
+        {
           "client_id": "433413816515-klmo9hb11sk602dqf8fcm2sq0fvh65as.apps.googleusercontent.com",
           "client_type": 3
         }
