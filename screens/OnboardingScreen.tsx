@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Constants from 'expo-constants';
 
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+// import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 
@@ -28,9 +28,9 @@ const slides: Slide[] = [
   { key: '3', title: 'Stay Balanced', description: 'Track your mood and sleep easily.', image: require('../assets/illustration1.png') },
 ];
 
-GoogleSignin.configure({
-  webClientId: '433413816515-klmo9hb11sk602dqf8fcm2sq0fvh65as.apps.googleusercontent.com',
-});
+// GoogleSignin.configure({
+//   webClientId: '433413816515-klmo9hb11sk602dqf8fcm2sq0fvh65as.apps.googleusercontent.com',
+// });
 
 const SlideItem = memo(function SlideItem({
   item, index, scrollX,
@@ -163,50 +163,50 @@ const onMomentumEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
   const glowTop = insets.top + TOP_OFFSET + (HERO_HEIGHT - GLOW_SIZE) / 2;
 
 
-const handleGoogleSignIn = async () => {
-  try {
-    await GoogleSignin.hasPlayServices();
-    const result = await GoogleSignin.signIn();
-    const idToken = (result as any).idToken;   
-    if (!idToken) throw new Error('No ID token from Google Sign-in');
+// const handleGoogleSignIn = async () => {
+//   try {
+//     await GoogleSignin.hasPlayServices();
+//     const result = await GoogleSignin.signIn();
+//     const idToken = (result as any).idToken;   
+//     if (!idToken) throw new Error('No ID token from Google Sign-in');
 
-    const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-    const userCredential = await auth().signInWithCredential(googleCredential);
-    const user = userCredential.user;
+//     const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+//     const userCredential = await auth().signInWithCredential(googleCredential);
+//     const user = userCredential.user;
 
-    if (!user) {
-      console.warn('Google sign-in succeeded but no user was returned.');
-      return;
-    }
+//     if (!user) {
+//       console.warn('Google sign-in succeeded but no user was returned.');
+//       return;
+//     }
 
     // Write/update user doc in Firestore
-    const userRef = firestore().collection('users').doc(user.uid);
-    const userSnap = await userRef.get();
-    const userData = {
-      uid: user.uid,
-      email: user.email ?? null,
-      displayName: user.displayName ?? null,
-      photoURL: user.photoURL ?? null,
-      provider: user.providerData?.[0]?.providerId ?? 'google.com',
-      updatedAt: firestore.FieldValue.serverTimestamp(),
-    };
-    if (!userSnap.exists) {
-      await userRef.set({
-        ...userData,
-        createdAt: firestore.FieldValue.serverTimestamp(),
-        role: 'user',
-        points: 0,
-      });
-    } else {
-      await userRef.set(userData, { merge: true });
-    }
-    navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+//     const userRef = firestore().collection('users').doc(user.uid);
+//     const userSnap = await userRef.get();
+//     const userData = {
+//       uid: user.uid,
+//       email: user.email ?? null,
+//       displayName: user.displayName ?? null,
+//       photoURL: user.photoURL ?? null,
+//       provider: user.providerData?.[0]?.providerId ?? 'google.com',
+//       updatedAt: firestore.FieldValue.serverTimestamp(),
+//     };
+//     if (!userSnap.exists) {
+//       await userRef.set({
+//         ...userData,
+//         createdAt: firestore.FieldValue.serverTimestamp(),
+//         role: 'user',
+//         points: 0,
+//       });
+//     } else {
+//       await userRef.set(userData, { merge: true });
+//     }
+//     navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
 
-  } catch (e) {
-    console.error('Google Sign-in Error:', e);
-    // Add any extra error handling here
-  }
-};
+//   } catch (e) {
+//     console.error('Google Sign-in Error:', e);
+//     // Add any extra error handling here
+//   }
+// };
 
   return (
 <View style={styles.container}>
@@ -281,7 +281,7 @@ const handleGoogleSignIn = async () => {
   </Animated.View>
 </View>
 
-<TouchableOpacity style={styles.googleBtn} onPress={handleGoogleSignIn}>
+<TouchableOpacity style={styles.googleBtn}>
   <Image source={require('../assets/google.png')} style={styles.googleLogo} />
   <Text style={styles.googleText}>Continue with Google</Text>
 </TouchableOpacity>

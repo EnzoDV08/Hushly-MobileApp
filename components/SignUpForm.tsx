@@ -54,7 +54,7 @@ export default function SignUpForm({ onSwitchToLogin, onSignedUp, navigation }: 
     }
     try {
       setBusy(true);
-      await registerUser(email.trim(), password);
+      await registerUser(email.trim(), password, username.trim());
       onSignedUp();
     } catch (e: any) {
       Alert.alert('Sign up failed', e?.message ?? 'Please try again');

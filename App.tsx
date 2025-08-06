@@ -13,6 +13,7 @@ import ProfileScreen from './screens/ProfileScreen';
 import SessionScreen from './screens/SessionScreen';
 import SessionHistoryScreen from './screens/SessionHistoryScreen';
 
+
 const Stack = createNativeStackNavigator();
 
 export default function App() {

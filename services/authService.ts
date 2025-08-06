@@ -7,7 +7,7 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
-export const registerUser = async (email: string, password: string) => {
+export const registerUser = async (email: string, password: string, username: string) => {
   const cred = await createUserWithEmailAndPassword(auth, email, password);
   const user = cred.user;
 
@@ -15,7 +15,7 @@ export const registerUser = async (email: string, password: string) => {
   await setDoc(doc(db, 'users', user.uid), {
     uid: user.uid,
     email: user.email ?? null,
-    displayName: user.displayName ?? null,
+    displayName: username,
     photoURL: user.photoURL ?? null,
     provider: 'password',
     role: 'user',
@@ -23,12 +23,14 @@ export const registerUser = async (email: string, password: string) => {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
-
+  
   await AsyncStorage.setItem('userUID', user.uid);
+  console.log(` New user registered: ${user.uid} (${username})`);
   return user;
 };
 
 export const loginUser = async (email: string, password: string) => {
+  console.log(` Attempting login for: ${email.trim()}`);
   const cred = await signInWithEmailAndPassword(auth, email, password);
   const user = cred.user;
 
@@ -40,10 +42,14 @@ export const loginUser = async (email: string, password: string) => {
   );
 
   await AsyncStorage.setItem('userUID', user.uid);
+  console.log(` User logged in: ${user.uid} (${user.email})`);
   return user;
 };
 
 export const logoutUser = async () => {
+  console.log(' Signing out user...');
   await AsyncStorage.removeItem('userUID');
   await signOut(auth);
+
+  console.log(' User signed out successfully');
 };
