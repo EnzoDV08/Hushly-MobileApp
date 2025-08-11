@@ -1,5 +1,5 @@
 import 'react-native-reanimated'; 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -11,7 +11,7 @@ import MainScreen from './screens/MainScreen';
 import SoundsScreen from './screens/SoundsScreen';
 import AuthScreen from './screens/AuthScreen';
 import ProfileScreen from './screens/ProfileScreen';
-import SettingsScreen from './screens/SettingsScreen'
+import SettingsScreen from './screens/SettingsScreen';
 import SessionScreen from './screens/SessionScreen';
 import SessionHistoryScreen from './screens/SessionHistoryScreen';
 // import { getStoredUser } from './services/authPersistence';
@@ -37,26 +37,20 @@ export default function App() {
 useEffect(() => {
   if (Platform.OS === 'android') {
     (async () => {
-      await NavigationBar.setButtonStyleAsync('light');     
+      try {
+        await NavigationBar.setButtonStyleAsync('light');
+      } catch (e) {
+        console.warn('NavigationBar style failed:', e);
+      }
       })();
     }
   }, []);
 
   return (
     <>
-      <StatusBar style="light" translucent />
-
+    <StatusBar style="light" translucent />
 <NavigationContainer>
-  <Stack.Navigator
-    initialRouteName="Splash"
-    screenOptions={{
-      headerShown: false,                   
-      headerStyle: { backgroundColor: '#141D2A' },
-      headerTintColor: 'white',
-      headerShadowVisible: false,
-      headerTitleAlign: 'center',
-    }}
-  >
+  <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
     <Stack.Screen name="Splash" component={SplashScreen} />
     <Stack.Screen name="Onboarding" component={OnboardingScreen} />
     <Stack.Screen name="Auth" component={AuthScreen} options={{ headerShown: false }} />

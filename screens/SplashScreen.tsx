@@ -3,11 +3,14 @@ import { Image, ImageBackground, StyleSheet, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming, withDelay} from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 
-
-
 type Props = { navigation: any };
 
 const BG_IMAGE_OPACITY = 0.35;
+const LOGO_FADE_MS = 500;
+const LOGO_MOVE_MS = 1100;
+const TAGLINE_DELAY_MS = 650;
+const TAGLINE_FADE_MS = 600;
+const NEXT_ROUTE_DELAY_MS = 2000;
 
 export default function SplashScreen({ navigation }: Props) {
   const logoScale = useSharedValue(1.8);
@@ -17,20 +20,20 @@ export default function SplashScreen({ navigation }: Props) {
   const taglineY = useSharedValue(10);
 
   useEffect(() => {
-    logoOpacity.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.quad) });
-    logoScale.value = withTiming(1, { duration: 1100, easing: Easing.out(Easing.cubic) });
-    logoY.value = withTiming(-8, { duration: 1100, easing: Easing.out(Easing.cubic) });
+    logoOpacity.value = withTiming(1, { duration: LOGO_FADE_MS, easing: Easing.out(Easing.quad) });
+    logoScale.value = withTiming(1, { duration: LOGO_MOVE_MS, easing: Easing.out(Easing.cubic) });
+    logoY.value = withTiming(-8, { duration: LOGO_MOVE_MS, easing: Easing.out(Easing.cubic) });
 
     taglineOpacity.value = withDelay(
-      650,
-      withTiming(1, { duration: 600, easing: Easing.out(Easing.quad) })
+      TAGLINE_DELAY_MS,
+      withTiming(1, { duration: TAGLINE_FADE_MS, easing: Easing.out(Easing.quad) })
     );
     taglineY.value = withDelay(
-      650,
-      withTiming(0, { duration: 600, easing: Easing.out(Easing.quad) })
+      TAGLINE_DELAY_MS,
+      withTiming(0, { duration: TAGLINE_FADE_MS, easing: Easing.out(Easing.quad) })
     );
 
-    const t = setTimeout(() => navigation.replace('Onboarding'), 2000);
+    const t = setTimeout(() => navigation.replace('Onboarding'), NEXT_ROUTE_DELAY_MS);
     return () => clearTimeout(t);
   }, []);
 

@@ -41,10 +41,22 @@
     },
     "plugins": [
       "expo-font",
-      "@react-native-firebase/app",
-      "@react-native-google-signin/google-signin",
       "expo-build-properties",
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "We need access to your photos to set your profile picture."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {},
+          "android": {}
+        }
+      ],
+      "@react-native-google-signin/google-signin"
     ],
     "extra": {
       "eas": {

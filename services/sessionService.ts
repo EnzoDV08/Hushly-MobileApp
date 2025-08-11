@@ -1,46 +1,90 @@
 import { getAuth } from 'firebase/auth';
-import { getFirestore, collection, addDoc, query, where, orderBy, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  orderBy,
+  updateDoc,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+  Timestamp,
+} from 'firebase/firestore';
 
-const COL = 'relaxSessions';
-
-export type RelaxSession = {
-  id?: string;
-  userId: string;
+export type SessionCreate = {
   startedAt: number;
   relaxedAt: number;
   durationMs: number;
   timeToRelaxMs: number;
   notes?: string;
-  createdAt: number;
 };
 
-export async function createSession(data: Omit<RelaxSession, 'id'|'userId'|'createdAt'>) {
-  const auth = getAuth();
-  if (!auth.currentUser) throw new Error('Not signed in');
+export type RelaxSession = {
+  id?: string;
+  uid: string;
+  startedAt: Timestamp;
+  relaxedAt: Timestamp;
+  durationMs: number;
+  timeToRelaxMs: number;
+  notes?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+};
+
+function userSessionsCol(uid: string) {
   const db = getFirestore();
-  const ref = await addDoc(collection(db, COL), {
-    userId: auth.currentUser.uid,
-    ...data,
-    createdAt: Date.now(),
-  });
+  return collection(db, 'users', uid, 'sessions');
+}
+
+export async function createSession(data: SessionCreate) {
+  const auth = getAuth();
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not signed in');
+
+  const payload: Omit<RelaxSession, 'id'> = {
+    uid: user.uid,
+    startedAt: Timestamp.fromMillis(data.startedAt),
+    relaxedAt: Timestamp.fromMillis(data.relaxedAt),
+    durationMs: Math.max(0, Math.floor(data.durationMs || 0)),
+    timeToRelaxMs: Math.max(0, Math.floor(data.timeToRelaxMs || 0)),
+    notes: data.notes ?? '',
+    createdAt: serverTimestamp() as any,
+    updatedAt: serverTimestamp() as any,
+  };
+
+  const ref = await addDoc(userSessionsCol(user.uid), payload as any);
   return ref.id;
 }
 
 export async function listMySessions(): Promise<RelaxSession[]> {
   const auth = getAuth();
-  if (!auth.currentUser) throw new Error('Not signed in');
-  const db = getFirestore();
-  const q = query(collection(db, COL), where('userId', '==', auth.currentUser.uid), orderBy('createdAt', 'desc'));
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not signed in');
+
+  const q = query(userSessionsCol(user.uid), orderBy('startedAt', 'desc'));
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+  return snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as RelaxSession[];
+}
+
+export async function updateSession(id: string, patch: Partial<Pick<RelaxSession, 'notes'>>) {
+  const auth = getAuth();
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not signed in');
+
+  const db = getFirestore();
+  await updateDoc(doc(db, 'users', user.uid, 'sessions', id), {
+    ...patch,
+    updatedAt: serverTimestamp(),
+  } as any);
 }
 
 export async function deleteSession(id: string) {
-  const db = getFirestore();
-  await deleteDoc(doc(db, COL, id));
-}
+  const auth = getAuth();
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not signed in');
 
-export async function updateSession(id: string, patch: Partial<Pick<RelaxSession,'notes'>>) {
   const db = getFirestore();
-  await updateDoc(doc(db, COL, id), patch as any);
+  await deleteDoc(doc(db, 'users', user.uid, 'sessions', id));
 }

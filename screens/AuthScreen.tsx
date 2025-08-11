@@ -3,6 +3,7 @@ import { View, TouchableOpacity, StyleSheet, Dimensions, Text, BackHandler } fro
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { useSharedValue, withTiming, useAnimatedStyle, withSpring, withDelay, interpolate } from 'react-native-reanimated';
+import { StatusBar } from 'expo-status-bar';
 import SignInForm from '../components/SignInForm';
 import SignUpForm from '../components/SignUpForm';
 
@@ -28,7 +29,6 @@ export default function AuthScreen({ navigation, route }: any) {
 
   const goOnboarding = () => navigation.replace('Onboarding');
 
-
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       goOnboarding();
@@ -37,6 +37,12 @@ export default function AuthScreen({ navigation, route }: any) {
     return () => sub.remove();
   }, []);
 
+   useEffect(() => {
+     const nextMode: Mode = route?.params?.mode === 'signup' ? 'signup' : 'login';
+     if (nextMode !== mode) {
+       switchTo(nextMode);
+     }
+   }, [route?.params?.mode]);
  
   const backPeek = useSharedValue(-8);      
   const backPress = useSharedValue(0);      
@@ -96,6 +102,7 @@ export default function AuthScreen({ navigation, route }: any) {
 
   return (
     <View style={styles.screen}>
+      <StatusBar style="light" translucent />
       <View style={[styles.headerWrap, { paddingTop: insets.top }]}>
         <View style={styles.headerRow}>
           <Animated.View style={[styles.backWrap, backWrapStyle]}>
@@ -203,6 +210,5 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#7A00FF',
     transform: [{ scaleX: 0 }],
-    transformOrigin: 'left',
   },
 });

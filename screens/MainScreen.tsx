@@ -14,6 +14,8 @@ import { auth, db } from '../firebase/firebaseConfig';
 import { audioManager } from '../services/audioManager';
 import { useShakeToRelax } from '../hooks/useShakeToRelax';
 import MiniPlayer from '../components/MiniPlayer'; 
+import { useFocusEffect } from '@react-navigation/native';
+
 
 const BRAND = '#7A00FF';
 const BRAND2 = '#9B5CFF';
@@ -151,14 +153,14 @@ export default function MainScreen({ navigation }: any) {
         if (snap.exists()) {
           const data = snap.data() as any;
           if (data.displayName) setDisplayName(data.displayName);
-          else setDisplayName(user.displayName ?? 'Friend');
+          else setDisplayName(user.displayName ?? 'User');
           if (data.photoURL) setPhotoURL(data.photoURL);
           if (data.email) setEmail(data.email);
         } else {
-          setDisplayName(user.displayName ?? 'Friend');
+          setDisplayName(user.displayName ?? 'User');
         }
       } catch {
-        setDisplayName(user.displayName ?? 'Friend');
+        setDisplayName(user.displayName ?? 'User');
       }
     });
     return unsub;
@@ -218,6 +220,36 @@ export default function MainScreen({ navigation }: any) {
     );
   };
 
+  const loadProfile = useCallback(async () => {
+  const u = auth.currentUser;
+  if (!u) return;
+
+  await u.reload();
+  const fresh = auth.currentUser;
+  setEmail(fresh?.email ?? '…');
+  setPhotoURL(fresh?.photoURL ?? '');
+  setDisplayName(fresh?.displayName ?? 'Friend');
+
+  try {
+    const snap = await getDoc(doc(db, 'users', fresh!.uid));
+    if (snap.exists()) {
+      const d = snap.data() as any;
+      if (d.displayName) setDisplayName(d.displayName);
+      if (d.email) setEmail(d.email);
+      if (d.photoURL) setPhotoURL(d.photoURL); 
+    }
+  } catch {}
+}, []);
+
+useFocusEffect(
+  useCallback(() => {
+    loadProfile();
+    return () => {};
+  }, [loadProfile])
+);
+
+
+
   return (
     <View style={styles.screen}>
       <LinearGradient colors={['#181F30', '#0F1623']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
@@ -241,9 +273,9 @@ export default function MainScreen({ navigation }: any) {
 
         <View style={styles.profileCard}>
           <View style={styles.avatarWrap}>
-            {photoURL ? (
-              <Image source={{ uri: photoURL }} style={styles.avatarImg} />
-            ) : (
+        {photoURL ? (
+          <Image key={photoURL} source={{ uri: photoURL }} style={styles.avatarImg} />
+        ) : (
               <LinearGradient colors={['#232C44', '#182034']} style={styles.avatarPlaceholder} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
                 <Ionicons name="person" size={28} color="#9CA3AF" />
               </LinearGradient>
