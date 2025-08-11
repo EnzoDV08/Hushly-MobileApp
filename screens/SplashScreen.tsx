@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Image, ImageBackground, StyleSheet, View } from 'react-native';
+import { Image, ImageBackground, StyleSheet, View } from 'react-native'; 
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming, withDelay} from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 

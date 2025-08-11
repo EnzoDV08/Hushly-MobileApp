@@ -25,7 +25,7 @@ type Slide = { key: string; title: string; description: string; image: any };
 const slides: Slide[] = [
   { key: '1', title: 'Welcome to Hushly', description: 'Relax. Recenter. Recharge.', image: require('../assets/HushlyLogo2.png') },
   { key: '2', title: 'Find Your Calm', description: 'Ambient sounds and breathing exercises.', image: require('../assets/illustration2.png') },
-  { key: '3', title: 'Stay Balanced', description: 'Track your mood and sleep easily.', image: require('../assets/illustration1.png') },
+  { key: '3', title: 'Stay Balanced', description: 'Track your mood.', image: require('../assets/illustration1.png') },
 ];
 
 // GoogleSignin.configure({
@@ -90,6 +90,7 @@ export default function OnboardingScreen({ navigation }: any) {
 }));
 
   const glow = useSharedValue(1);
+  
 useEffect(() => {
   const MIN = 0.92;    
   const MAX = 1.08;    
