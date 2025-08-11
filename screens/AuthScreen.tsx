@@ -2,14 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, Dimensions, Text, BackHandler } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, {
-  useSharedValue,
-  withTiming,
-  useAnimatedStyle,
-  withSpring,
-  withDelay,
-  interpolate,
-} from 'react-native-reanimated';
+import Animated, { useSharedValue, withTiming, useAnimatedStyle, withSpring, withDelay, interpolate } from 'react-native-reanimated';
 import SignInForm from '../components/SignInForm';
 import SignUpForm from '../components/SignUpForm';
 

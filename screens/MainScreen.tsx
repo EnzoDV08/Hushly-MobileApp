@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Switch, Platform, ScrollView, Image, Modal, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -8,11 +8,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { theme } from '../styles/theme';
 import { CommonActions } from '@react-navigation/native';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { signOut } from 'firebase/auth';
 import { auth, db } from '../firebase/firebaseConfig';
 import { audioManager } from '../services/audioManager';
+import { useShakeToRelax } from '../hooks/useShakeToRelax';
+import MiniPlayer from '../components/MiniPlayer'; 
 
 const BRAND = '#7A00FF';
 const BRAND2 = '#9B5CFF';
@@ -117,9 +118,14 @@ function ProgressRing({ size = 72, stroke = 8, progress = 0.65, color = BRAND })
     <Svg width={size} height={size}>
       <Circle cx={size / 2} cy={size / 2} r={r} stroke="#1F2A44" strokeWidth={stroke} fill="none" />
       <Circle
-        cx={size / 2} cy={size / 2} r={r}
-        stroke={color} strokeWidth={stroke} fill="none"
-        strokeDasharray={`${dash}, ${c - dash}`} strokeLinecap="round"
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        stroke={color}
+        strokeWidth={stroke}
+        fill="none"
+        strokeDasharray={`${dash}, ${c - dash}`}
+        strokeLinecap="round"
         transform={`rotate(-90 ${size / 2} ${size / 2})`}
       />
     </Svg>
@@ -134,38 +140,40 @@ export default function MainScreen({ navigation }: any) {
   const [email, setEmail] = useState<string>('…');
   const [photoURL, setPhotoURL] = useState<string>('');
 
-  const [playing, setPlaying] = useState<boolean>(false);
-  const trackUri = 'https://cdn.pixabay.com/audio/2021/10/26/audio_46c1a0b2c3.mp3'; 
-
-  useEffect(() => {
-    const off = audioManager.addListener(setPlaying);
-    return off;
-  }, []);
-
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) return;
       setEmail(user.email ?? 'unknown@email');
-      setDisplayName(user.displayName ?? 'Friend');
       setPhotoURL(user.photoURL ?? '');
+
       try {
         const snap = await getDoc(doc(db, 'users', user.uid));
         if (snap.exists()) {
           const data = snap.data() as any;
           if (data.displayName) setDisplayName(data.displayName);
+          else setDisplayName(user.displayName ?? 'Friend');
           if (data.photoURL) setPhotoURL(data.photoURL);
           if (data.email) setEmail(data.email);
+        } else {
+          setDisplayName(user.displayName ?? 'Friend');
         }
-      } catch {}
+      } catch {
+        setDisplayName(user.displayName ?? 'Friend');
+      }
     });
     return unsub;
   }, []);
 
-  const [shakeOn, setShakeOn] = useState(true);
 
-  const todayCalmMinutes = 14, todayGoal = 20;
+  const [shakeOn, setShakeOn] = useState(true);
+  const openSessionOnShake = useCallback(() => navigation.navigate('Session'), [navigation]);
+  useShakeToRelax(openSessionOnShake, shakeOn);
+
+
+  const todayCalmMinutes = 14,
+    todayGoal = 20;
   const progress = Math.min(todayCalmMinutes / todayGoal, 1);
-  const hasResume = false;
+
 
   const orb = useSharedValue(0);
   useEffect(() => {
@@ -176,10 +184,14 @@ export default function MainScreen({ navigation }: any) {
     opacity: 0.85 + orb.value * 0.15,
   }));
 
+
   const headerIn = useSharedValue(0);
-  useEffect(() => { headerIn.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) }); }, []);
+  useEffect(() => {
+    headerIn.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) });
+  }, []);
   const headerStyle = useAnimatedStyle(() => ({
-    opacity: headerIn.value, transform: [{ translateY: (1 - headerIn.value) * -12 }],
+    opacity: headerIn.value,
+    transform: [{ translateY: (1 - headerIn.value) * -12 }],
   }));
 
   const greeting = useMemo(() => {
@@ -187,32 +199,24 @@ export default function MainScreen({ navigation }: any) {
     return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
   }, []);
 
+
   const [confirmVisible, setConfirmVisible] = useState(false);
   const askSignOut = () => setConfirmVisible(true);
   const cancelSignOut = () => setConfirmVisible(false);
 
   const doSignOut = async () => {
-  setConfirmVisible(false);
-  try {
-    await audioManager.stop();
-    await signOut(auth);
-  } catch {}
-  navigation.dispatch(
-    CommonActions.reset({
-      index: 0,
-      routes: [{ name: 'Onboarding' }],
-    })
-  );
-};
-
-  const onPlayPause = async () => {
-    if (playing) {
-      await audioManager.pause();
-    } else {
-      await audioManager.play(trackUri);
-    }
+    setConfirmVisible(false);
+    try {
+      await audioManager.stop();
+      await signOut(auth);
+    } catch {}
+    navigation.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [{ name: 'Onboarding' }],
+      }),
+    );
   };
-  const onStop = async () => { await audioManager.stop(); };
 
   return (
     <View style={styles.screen}>
@@ -220,7 +224,7 @@ export default function MainScreen({ navigation }: any) {
       <ScrollView
         contentContainerStyle={[
           styles.scrollBody,
-          { paddingTop: headerHeight + Math.max(insets.top, 10) + 8, paddingBottom: insets.bottom + 90},
+          { paddingTop: headerHeight + Math.max(insets.top, 10) + 8, paddingBottom: insets.bottom + 90 },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -270,7 +274,9 @@ export default function MainScreen({ navigation }: any) {
             <ProgressRing size={72} stroke={8} progress={progress} />
             <View style={{ marginLeft: 12 }}>
               <Text style={styles.todayLabel}>Today</Text>
-              <Text style={styles.todayValue}>{todayCalmMinutes} / {todayGoal}m</Text>
+              <Text style={styles.todayValue}>
+                {todayCalmMinutes} / {todayGoal}m
+              </Text>
               <Text style={styles.todayHint}>Keep it up</Text>
             </View>
           </View>
@@ -290,42 +296,41 @@ export default function MainScreen({ navigation }: any) {
         </View>
 
         <View style={styles.grid}>
-          <ActionCard title="Start Session" subtitle="Guided breathing"
-            icon={<Ionicons name="leaf-outline" size={20} color="#E5E7EB" />} delay={60}
-            onPress={() => navigation.navigate('Session')} />
-          <ActionCard title="Quick Breathe • 1 min" subtitle="4–2–6 pattern"
-            icon={<Ionicons name="time-outline" size={20} color="#E5E7EB" />} delay={100}
-            onPress={() => navigation.navigate('Session', { quick: 60 })} />
-          <ActionCard title="Ambient Sounds" subtitle="Rain • Forest • Brown noise"
-            icon={<Ionicons name="musical-notes-outline" size={20} color="#E5E7EB" />} delay={140}
-            onPress={() => navigation.navigate('Sounds')} />
-          <ActionCard title="Track Mood" subtitle="2-tap journal"
-            icon={<Ionicons name="happy-outline" size={20} color="#E5E7EB" />} delay={180}
-            onPress={() => navigation.navigate('Mood')} />
-          <ActionCard title="Profile" subtitle="Stats & achievements"
-            icon={<Ionicons name="person-circle-outline" size={20} color="#E5E7EB" />} delay={220}
-            onPress={() => navigation.navigate('Profile')} />
-          <ActionCard title="Settings" subtitle="Sensitivity • Haptics"
-            icon={<Ionicons name="settings-outline" size={20} color="#E5E7EB" />} delay={260}
-            onPress={() => navigation.navigate('Settings')} />
+          <ActionCard
+            title="Start Session"
+            subtitle="Guided breathing"
+            icon={<Ionicons name="leaf-outline" size={20} color="#E5E7EB" />}
+            delay={60}
+            onPress={() => navigation.navigate('Session')}
+          />
+          <ActionCard
+            title="Ambient Sounds"
+            subtitle="Rain • Forest • Brown noise"
+            icon={<Ionicons name="musical-notes-outline" size={20} color="#E5E7EB" />}
+            delay={140}
+            onPress={() => navigation.navigate('Sounds')}
+          />
+          <ActionCard
+            title="Stats"
+            subtitle="Fastest • Average • Total"
+            icon={<Ionicons name="stats-chart-outline" size={20} color="#E5E7EB" />}
+            delay={220}
+            onPress={() => navigation.navigate('SessionHistory')}
+          />
+          <ActionCard
+            title="Settings"
+            subtitle="Sensitivity • Haptics"
+            icon={<Ionicons name="settings-outline" size={20} color="#E5E7EB" />}
+            delay={260}
+            onPress={() => navigation.navigate('Settings')}
+          />
         </View>
 
         <View style={{ height: 24 }} />
       </ScrollView>
 
-      <View style={[styles.miniPlayer, { paddingBottom: insets.bottom + 8 }]}>
-        <Ionicons name="musical-notes" size={18} color="#E5E7EB" />
-        <Text style={styles.miniTitle} numberOfLines={1}>Ambient — Focus Tones</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <Pressable onPress={onPlayPause} style={styles.ctrlBtn}>
-            <Ionicons name={playing ? 'pause' : 'play'} size={18} color="#0F172A" />
-          </Pressable>
-          <Pressable onPress={onStop} style={[styles.ctrlBtn, { backgroundColor: '#FCA5A5' }]}>
-            <Ionicons name="stop" size={16} color="#0F172A" />
-          </Pressable>
-        </View>
-      </View>
-  
+      <MiniPlayer />
+
       <StyledModal
         visible={confirmVisible}
         title="Sign out?"
@@ -340,251 +345,123 @@ export default function MainScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  screen: { 
-    flex: 1, 
-    backgroundColor: BG 
-  },
-  scrollBody: { 
-    paddingHorizontal: 18 
-  },
+  screen: { flex: 1, backgroundColor: BG },
+  scrollBody: { paddingHorizontal: 18 },
   header: {
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between', 
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 14,
   },
-  greeting: { 
-    color: '#BFC8D8', 
-    fontSize: 14 
-  },
-  name: { color: '#FFFFFF',
-    fontWeight: '900',
-    fontSize: 22,
-    marginTop: 2 
-  },
+  greeting: { color: '#BFC8D8', fontSize: 14 },
+  name: { color: '#FFFFFF', fontWeight: '900', fontSize: 22, marginTop: 2 },
   iconBtn: {
-    width: 36, 
-    height: 36, 
-    borderRadius: 18, 
-    alignItems: 'center', 
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.08)',
   },
   profileCard: {
-    flexDirection: 'row', 
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0F172A', 
+    backgroundColor: '#0F172A',
     borderRadius: 16,
-    paddingHorizontal: 14, 
+    paddingHorizontal: 14,
     paddingVertical: 12,
-    borderWidth: 1, 
-    borderColor: '#1F2937', 
+    borderWidth: 1,
+    borderColor: '#1F2937',
     marginBottom: 12,
   },
-  avatarWrap: { 
-    marginRight: 12 
-  },
-  avatarImg: { 
-    width: 48,
-    height: 48,
-    borderRadius: 24, backgroundColor: '#1F2937' },
-  avatarPlaceholder: { 
-    width: 48, 
-    height: 48, 
-    borderRadius: 24, 
-    alignItems: 'center', 
-    justifyContent: 'center' 
-  },
-  profileName: { 
-    color: 'white', 
-    fontWeight: '800', 
-    fontSize: 16 
-  },
-  profileEmail: { 
-    color: '#9CA3AF', 
-    fontSize: 12, 
-    marginTop: 2 
-  },
+  avatarWrap: { marginRight: 12 },
+  avatarImg: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#1F2937' },
+  avatarPlaceholder: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  profileName: { color: 'white', fontWeight: '800', fontSize: 16 },
+  profileEmail: { color: '#9CA3AF', fontSize: 12, marginTop: 2 },
   profileBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.06)',
-    paddingHorizontal: 10, 
-    paddingVertical: 6, 
-    borderRadius: 12, 
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
     marginLeft: 8,
   },
-  profileBtnText: { 
-    color: '#E5E7EB', 
-    fontWeight: '700', 
-    marginLeft: 6, 
-    fontSize: 12 
-  },
-  topRow: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    marginBottom: 14 
-  },
+  profileBtnText: { color: '#E5E7EB', fontWeight: '700', marginLeft: 6, fontSize: 12 },
+  topRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
   orbWrap: {
-    width: 110, 
-    height: 110, 
+    width: 110,
+    height: 110,
     borderRadius: 55,
     marginRight: 12,
     backgroundColor: 'rgba(122,0,255,0.20)',
-    alignItems: 'center', 
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  orb: { 
-    width: 92, 
-    height: 92, 
-    borderRadius: 46 
-  },
+  orb: { width: 92, height: 92, borderRadius: 46 },
   todayCard: {
-    flex: 1, 
-    flexDirection: 'row', 
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#111827', 
-    borderRadius: 16, 
+    backgroundColor: '#111827',
+    borderRadius: 16,
     padding: 12,
-    borderWidth: 1, 
+    borderWidth: 1,
     borderColor: '#1F2937',
   },
-  todayLabel: { 
-    color: '#9CA3AF', 
-    fontSize: 12 
-  },
-  todayValue: { 
-    color: '#FFFFFF', 
-    fontSize: 18, 
-    fontWeight: '800', 
-    marginTop: 2 },
-  todayHint: { 
-    color: '#BFC8D8', 
-    fontSize: 12, 
-    marginTop: 2 
-  },
+  todayLabel: { color: '#9CA3AF', fontSize: 12 },
+  todayValue: { color: '#FFFFFF', fontSize: 18, fontWeight: '800', marginTop: 2 },
+  todayHint: { color: '#BFC8D8', fontSize: 12, marginTop: 2 },
   rowCard: {
-    flexDirection: 'row', 
-    alignItems: 'center', 
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#111827', 
-    borderRadius: 16, 
-    paddingHorizontal: 14, 
+    backgroundColor: '#111827',
+    borderRadius: 16,
+    paddingHorizontal: 14,
     paddingVertical: 12,
-    borderWidth: 1, 
-    borderColor: '#1F2937', 
+    borderWidth: 1,
+    borderColor: '#1F2937',
     marginTop: 10,
   },
-  rowTitle: { 
-    color: '#E5E7EB', 
-    fontWeight: '700', 
-    marginLeft: 10 
-  },
-  grid: { 
-    marginTop: 12, 
-    gap: 10 
-  },
+  rowTitle: { color: '#E5E7EB', fontWeight: '700', marginLeft: 10 },
+  grid: { marginTop: 12, gap: 10 },
   card: {
-    flexDirection: 'row', 
-    alignItems: 'center', 
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#0F172A',
     borderRadius: 16,
-    paddingVertical: 14, 
+    paddingVertical: 14,
     paddingHorizontal: 14,
-    borderWidth: 1, 
+    borderWidth: 1,
     borderColor: '#1F2937',
     gap: 12,
   },
   cardIcon: {
-    width: 36, 
-    height: 36, 
-    borderRadius: 10, 
-    alignItems: 'center', 
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.06)',
   },
-  cardTitle: { 
-    color: '#FFFFFF', 
-    fontWeight: '800', 
-    fontSize: 16, 
-    marginBottom: 2 
-  },
-  cardSubtitle: { 
-    color: '#9CA3AF',
-    fontSize: 12 
-  },
-  miniPlayer: {
-    position: 'absolute', 
-    left: 12, 
-    right: 12, 
-    bottom: 0,
-    backgroundColor: '#0B1220', 
-    borderColor: '#1F2937', 
-    borderWidth: 1,
-    paddingHorizontal: 12, 
-    paddingVertical: 10, 
-    borderRadius: 14,
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 10,
-    shadowColor: '#000', 
-    shadowOpacity: 0.2, 
-    shadowRadius: 8, 
-    elevation: 8,
-  },
-  miniTitle: { 
-    color: '#E5E7EB',
-    fontWeight: '700',
-    flex: 1 
-    },
-  ctrlBtn: {
-    width: 36, 
-    height: 36, 
-    borderRadius: 18,
-    backgroundColor: '#86EFAC',
-    alignItems: 'center', 
-    justifyContent: 'center',
-  },
-  modalBackdrop: { flex: 1,
-    backgroundColor: 'rgba(10,12,20,0.66)',
-    alignItems: 'center', 
-    justifyContent: 'center' 
-  },
+  cardTitle: { color: '#FFFFFF', fontWeight: '800', fontSize: 16, marginBottom: 2 },
+  cardSubtitle: { color: '#9CA3AF', fontSize: 12 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(10,12,20,0.66)', alignItems: 'center', justifyContent: 'center' },
   modalCard: {
-    width: '84%', 
-    backgroundColor: '#0F172A', 
-    borderRadius: 18, 
+    width: '84%',
+    backgroundColor: '#0F172A',
+    borderRadius: 18,
     padding: 18,
-    borderWidth: 1, 
+    borderWidth: 1,
     borderColor: '#1F2937',
   },
-  modalTitle: { 
-    color: 'white', 
-    fontSize: 18, 
-    fontWeight: '900', 
-    marginBottom: 8 
-  },
-  modalMsg: { 
-    color: '#B6C2D2', 
-    fontSize: 14, 
-    marginBottom: 14 },
-  modalRow: { 
-    flexDirection: 'row', 
-    justifyContent: 'flex-end', 
-    gap: 10 
-  },
-  modalBtn: { 
-    paddingHorizontal: 14, 
-    paddingVertical: 10, 
-    borderRadius: 12 
-  },
-  modalCancel: { 
-    backgroundColor: 'rgba(255,255,255,0.06)' 
-  },
-  modalConfirm: { 
-    backgroundColor: BRAND 
-  },
-  modalBtnText: { 
-    fontWeight: '800' 
-  },
+  modalTitle: { color: 'white', fontSize: 18, fontWeight: '900', marginBottom: 8 },
+  modalMsg: { color: '#B6C2D2', fontSize: 14, marginBottom: 14 },
+  modalRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
+  modalBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12 },
+  modalCancel: { backgroundColor: 'rgba(255,255,255,0.06)' },
+  modalConfirm: { backgroundColor: BRAND },
+  modalBtnText: { fontWeight: '800' },
 });
