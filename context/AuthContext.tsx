@@ -11,7 +11,8 @@ export const AuthProvider = ({ children }: any) => {
     const unsubscribe = onAuthStateChanged(auth, setUser);
     return unsubscribe;
   }, []);
-
+  
+ //his means any component inside AuthProvider can access { user } from this context.
   return (
     <AuthContext.Provider value={{ user }}>
       {children}

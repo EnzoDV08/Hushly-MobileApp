@@ -20,7 +20,8 @@ import {
 import {
   doc, setDoc, serverTimestamp, deleteDoc
 } from 'firebase/firestore';
-import { K_HAPTICS, SETTINGS_EVENT, Prefs } from './SettingsScreen';
+import { K_HAPTICS, SETTINGS_EVENT, Prefs } from '../services/settings';
+import FABBack from '../components/FABBack';
 
 const BG = '#141D2A';
 const BRAND = '#7A00FF';
@@ -205,13 +206,16 @@ export default function ProfileScreen({ navigation }: any) {
   try {
     setUploading(true);
     
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    console.log('[Avatar] permission status:', perm);
-    if (!perm.granted) {
-      console.error('[Avatar] permission not granted');
-      Alert.alert('Permission needed', 'Please allow photo library access.');
-      return;
-    }
+const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+if (!perm.granted) {
+  Alert.alert(
+    'Permission needed',
+    'Please allow photo library access in your device settings.',
+    [{ text: 'OK' }]
+  );
+  return;
+}
+
 
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -295,21 +299,16 @@ export default function ProfileScreen({ navigation }: any) {
   };
 
     useEffect(() => {
-    const sub = auth.onAuthStateChanged(() => refreshUser());
-    return () => sub();
-  }, []);
+      const unsub = auth.onAuthStateChanged(() => refreshUser());
+      return unsub; 
+    }, []);
+
 
   return (
     <View style={st.screen}>
       <LinearGradient colors={['#181F30', '#0F1623']} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-
       <Animated.View style={[st.headerWrap, { paddingTop: insets.top + 6 }, headerStyle]}>
         <View style={st.headerRow}>
-          <Animated.View style={[st.backWrap, backWrapStyle]}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={st.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
-              <Ionicons name="arrow-back" size={22} color="#0F172A" />
-            </TouchableOpacity>
-          </Animated.View>
           <View style={st.titleCol}>
             <Text style={st.headerTitle}>Your Profile</Text>
             <View style={st.underline} />
@@ -461,6 +460,7 @@ export default function ProfileScreen({ navigation }: any) {
           </Pressable>
         </View>
       </View>
+      <FABBack onPress={() => navigation.goBack?.()} bottomOffset={12} />
     </View>
   );
 }

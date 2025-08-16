@@ -14,25 +14,13 @@ import ProfileScreen from './screens/ProfileScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import SessionScreen from './screens/SessionScreen';
 import SessionHistoryScreen from './screens/SessionHistoryScreen';
-// import { getStoredUser } from './services/authPersistence';
-// import { DocumentData } from 'firebase/firestore';
+import { navigationRef } from './navigationRef';  
+import GlobalShakeWatcher from './hooks/GlobalShakeWatcher';
 
 const Stack = createNativeStackNavigator();
 
 
 export default function App() {
-// const [loading, setLoading] = useState(true);
-// const [user, setUser] = useState<DocumentData | null>(null);
-
-// useEffect(() => {
-//   const checkLogin = async () => {
-//     const restoredUser = await getStoredUser();
-//     console.log("Restored user:", restoredUser);
-//     setUser(restoredUser);
-//     setLoading(false);
-//   };
-//   checkLogin();
-// }, []);
 
 useEffect(() => {
   if (Platform.OS === 'android') {
@@ -49,7 +37,8 @@ useEffect(() => {
   return (
     <>
     <StatusBar style="light" translucent />
-<NavigationContainer>
+<NavigationContainer ref={navigationRef}>
+   <GlobalShakeWatcher />
   <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
     <Stack.Screen name="Splash" component={SplashScreen} />
     <Stack.Screen name="Onboarding" component={OnboardingScreen} />

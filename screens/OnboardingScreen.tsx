@@ -3,6 +3,7 @@ import { Dimensions, Image, ImageBackground, NativeScrollEvent, NativeSyntheticE
 import Animated, { Easing, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming, withRepeat, SharedValue, Extrapolate, runOnJS } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Settings, Hand } from '../services/settings';
 
 const { width } = Dimensions.get('window');
 const TOP_OFFSET = 66;
@@ -74,6 +75,7 @@ const SlideItem = memo(function SlideItem({
   );
 });
 
+
 export default function OnboardingScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const [index, setIndex] = useState(0);
@@ -86,6 +88,19 @@ export default function OnboardingScreen({ navigation }: any) {
   const curY = useSharedValue(0);
   const incOpacity = useSharedValue(0);
   const incY = useSharedValue(10);
+
+  const [prefSide, setPrefSide] = useState<Hand>('left');
+  useEffect(() => {
+    Settings.load().then(p => {
+      setPrefSide(p.hand === 'right' ? 'right' : 'left');
+    });
+  }, []);
+
+  const pickSide = (side: Hand) => {
+    setPrefSide(side);
+    Settings.update({ oneHand: true, hand: side });
+  };
+
 
   const curStyle = useAnimatedStyle(() => ({
     opacity: curOpacity.value,
@@ -251,10 +266,24 @@ export default function OnboardingScreen({ navigation }: any) {
             </Animated.View>
           </View>
 
-          <TouchableOpacity style={styles.googleBtn}>
-            <Image source={require('../assets/google.png')} style={styles.googleLogo} />
-            <Text style={styles.googleText}>Continue with Google</Text>
-          </TouchableOpacity>
+          <View style={styles.segmentWrap}>
+            <Text style={styles.segmentLabel}>Preferred side</Text>
+            <View style={styles.segment}>
+              <TouchableOpacity
+                style={[styles.segmentBtn, prefSide === 'left' && styles.segmentBtnActive]}
+                onPress={() => pickSide('left')}
+              >
+                <Text style={[styles.segmentText, prefSide === 'left' && styles.segmentTextActive]}>Left</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.segmentBtn, prefSide === 'right' && styles.segmentBtnActive]}
+                onPress={() => pickSide('right')}
+              >
+                <Text style={[styles.segmentText, prefSide === 'right' && styles.segmentTextActive]}>Right</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.segmentHelper}>You can change this anytime in Settings.</Text>
+          </View>
 
           <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('Auth', { mode: 'signup' })}>
             <Text style={styles.primaryText}>Sign up with email</Text>
@@ -393,4 +422,42 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     position: 'relative',
   },
+  segmentWrap: {
+  marginBottom: 12,
+},
+segmentLabel: {
+  color: '#0F172A',
+  fontWeight: '800',
+  fontSize: 14,
+  marginBottom: 8,
+},
+segment: {
+  flexDirection: 'row',
+  backgroundColor: '#F3F4F6',
+  borderRadius: 14,
+  borderWidth: 1,
+  borderColor: '#E5E7EB',
+  padding: 4,
+},
+segmentBtn: {
+  flex: 1,
+  alignItems: 'center',
+  paddingVertical: 10,
+  borderRadius: 10,
+},
+segmentBtnActive: {
+  backgroundColor: '#7A00FF',
+},
+segmentText: {
+  fontWeight: '800',
+  color: '#374151',
+},
+segmentTextActive: {
+  color: 'white',
+},
+segmentHelper: {
+  color: '#6B7280',
+  fontSize: 12,
+  marginTop: 6,
+},
 });

@@ -6,8 +6,13 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 export const checkUsernameAvailable = async (name: string) => {
   const lower = (name || '').trim().toLowerCase();
   if (lower.length < 2) return false;
+
   const snap = await getDoc(doc(db, 'usernames', lower));
-  return !snap.exists();
+  if (!snap.exists()) return true;
+
+  const current = auth.currentUser?.uid;
+  const mappedUid = snap.data()?.uid;
+  return mappedUid === current;
 };
 
 export const updateDisplayNameAndUsername = async (newName: string) => {

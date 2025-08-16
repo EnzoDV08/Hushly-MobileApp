@@ -68,12 +68,6 @@ export default function SignInForm({ onSwitchToSignup, onSignedIn }: any) {
           const map: Record<string, string> = {
             password: 'Email & password',
             'google.com': 'Google',
-            'apple.com': 'Apple',
-            'facebook.com': 'Facebook',
-            'twitter.com': 'Twitter / X',
-            'github.com': 'GitHub',
-            'microsoft.com': 'Microsoft',
-            'yahoo.com': 'Yahoo',
           };
           const nice = methods.map(m => map[m] ?? m).join(', ');
           setProviderHint(nice);
@@ -89,6 +83,7 @@ export default function SignInForm({ onSwitchToSignup, onSignedIn }: any) {
         if (!cancelled) setCheckingEmail(false);
       }
     }, 350);
+    
 
     return () => {
       cancelled = true;

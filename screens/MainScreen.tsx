@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, Switch, Platform, ScrollView, Image,
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming,  runOnJS, } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { theme } from '../styles/theme';
@@ -15,6 +15,9 @@ import { audioManager } from '../services/audioManager';
 import { useShakeToRelax } from '../hooks/useShakeToRelax';
 import MiniPlayer from '../components/MiniPlayer'; 
 import { useFocusEffect } from '@react-navigation/native';
+import { useShakeIntensity } from '../hooks/useShakeIntensity';
+import { listMySessions } from '../services/sessionService';
+import { Settings, Hand } from '../services/settings';
 
 
 const BRAND = '#7A00FF';
@@ -50,6 +53,9 @@ function StyledModal({
 }) {
   const scale = useSharedValue(0.9);
   const opacity = useSharedValue(0);
+
+  const [todayCalmMinutes, setTodayCalmMinutes] = useState(0);
+  const todayGoal = 20; 
 
   useEffect(() => {
     if (visible) {
@@ -112,25 +118,56 @@ function ActionCard({ title, subtitle, icon, onPress, delay = 0 }: CardProps) {
   );
 }
 
-function ProgressRing({ size = 72, stroke = 8, progress = 0.65, color = BRAND }) {
+function isSameDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() &&
+         a.getMonth() === b.getMonth() &&
+         a.getDate() === b.getDate();
+}
+
+function ProgressRing({
+  size = 72,
+  stroke = 8,
+  progress = 0,
+  color = BRAND,
+  showCheck = false,
+}: {
+  size?: number;
+  stroke?: number;
+  progress?: number; 
+  color?: string;
+  showCheck?: boolean;
+}) {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
-  const dash = c * Math.min(Math.max(progress, 0), 1);
+  const clamped = Math.max(0, Math.min(1, progress));
+  const dash = c * clamped;
+
   return (
-    <Svg width={size} height={size}>
-      <Circle cx={size / 2} cy={size / 2} r={r} stroke="#1F2A44" strokeWidth={stroke} fill="none" />
-      <Circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        stroke={color}
-        strokeWidth={stroke}
-        fill="none"
-        strokeDasharray={`${dash}, ${c - dash}`}
-        strokeLinecap="round"
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-      />
-    </Svg>
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size}>
+        <Circle cx={size / 2} cy={size / 2} r={r} stroke="#1F2A44" strokeWidth={stroke} fill="none" />
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke={color}
+          strokeWidth={stroke}
+          fill="none"
+          strokeDasharray={`${dash}, ${c - dash}`}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </Svg>
+
+      {showCheck && (
+        <Ionicons
+          name="checkmark"
+          size={Math.max(22, Math.floor(size * 0.34))}
+          color="#ffffff"
+          style={{ position: 'absolute' }}
+        />
+      )}
+    </View>
   );
 }
 
@@ -141,6 +178,14 @@ export default function MainScreen({ navigation }: any) {
   const [displayName, setDisplayName] = useState<string>('…');
   const [email, setEmail] = useState<string>('…');
   const [photoURL, setPhotoURL] = useState<string>('');
+
+  function toDate(v: any): Date {
+  if (!v) return new Date();
+  if (typeof v?.toDate === 'function') return v.toDate(); 
+  if (typeof v?.seconds === 'number') return new Date(v.seconds * 1000); 
+  if (v instanceof Date) return v;
+  return new Date(v);
+}
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -166,15 +211,53 @@ export default function MainScreen({ navigation }: any) {
     return unsub;
   }, []);
 
+    const [shakeOn, setShakeOn] = useState(true);
 
-  const [shakeOn, setShakeOn] = useState(true);
-  const openSessionOnShake = useCallback(() => navigation.navigate('Session'), [navigation]);
-  useShakeToRelax(openSessionOnShake, shakeOn);
+    const openSessionOnShake = useCallback(() => {
+      navigation.navigate('Session');
+    }, [navigation]);
 
+    const { intensity, isShaking } = useShakeIntensity(shakeOn);
 
-  const todayCalmMinutes = 14,
-    todayGoal = 20;
-  const progress = Math.min(todayCalmMinutes / todayGoal, 1);
+    useShakeToRelax(openSessionOnShake, shakeOn, 10_000, 1.35, 55);
+    
+    const [todayMs, setTodayMs] = useState(0);
+    const todayGoalMin = 20;
+    const todayGoalMs = todayGoalMin * 60_000;
+
+    const refreshTodayTotals = useCallback(async () => {
+      const rows = await listMySessions();
+      const now = new Date();
+
+      const sumMs = (rows ?? [])
+        .filter(r => isSameDay(toDate(r?.startedAt), now))
+        .reduce((acc: number, r: any) => acc + Math.max(0, r?.durationMs ?? 0), 0);
+
+      setTodayMs(sumMs);
+    }, []);
+
+    useFocusEffect(
+      useCallback(() => {
+        refreshTodayTotals();
+        return () => {};
+      }, [refreshTodayTotals])
+    );
+
+    const totalSeconds = Math.floor(todayMs / 1000);
+    const minutesPart = Math.floor(totalSeconds / 60);
+    const secondsPart = totalSeconds % 60;
+    const todayMinutes = Math.min(minutesPart, todayGoalMin);
+    const progress = Math.min(todayMs / todayGoalMs, 1);
+    const completed = progress >= 1;
+
+    const remainingMs = Math.max(0, todayGoalMs - todayMs);
+    const remainingMinutes = Math.floor(remainingMs / 60_000);
+    const remainingSeconds = Math.floor((remainingMs % 60_000) / 1000);
+
+    const hint = completed
+      ? 'Completed — great job!'
+      : ` ${remainingMinutes}m ${remainingSeconds}s left`;
+
 
 
   const orb = useSharedValue(0);
@@ -228,27 +311,75 @@ export default function MainScreen({ navigation }: any) {
   const fresh = auth.currentUser;
   setEmail(fresh?.email ?? '…');
   setPhotoURL(fresh?.photoURL ?? '');
-  setDisplayName(fresh?.displayName ?? 'Friend');
+  setDisplayName(fresh?.displayName ?? 'Loading');
 
   try {
-    const snap = await getDoc(doc(db, 'users', fresh!.uid));
-    if (snap.exists()) {
-      const d = snap.data() as any;
-      if (d.displayName) setDisplayName(d.displayName);
-      if (d.email) setEmail(d.email);
-      if (d.photoURL) setPhotoURL(d.photoURL); 
-    }
-  } catch {}
-}, []);
+      const snap = await getDoc(doc(db, 'users', fresh!.uid));
+      if (snap.exists()) {
+        const d = snap.data() as any;
+        if (d.displayName) setDisplayName(d.displayName);
+        if (d.email) setEmail(d.email);
+        if (d.photoURL) setPhotoURL(d.photoURL); 
+      }
+    } catch {}
+  }, []);
 
-useFocusEffect(
-  useCallback(() => {
-    loadProfile();
-    return () => {};
-  }, [loadProfile])
-);
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile();
+      return () => {};
+    }, [loadProfile])
+  );
 
+    const BREATH_STEPS = useMemo(() => ([
+    { label: 'Breathe in',  duration: 4000 },
+    { label: 'Hold',        duration: 4000 },
+    { label: 'Breathe out', duration: 6000 },
+  ]), []);
 
+    const [breathLabel, setBreathLabel] = useState('Breathe in');
+    const breathProg = useSharedValue(0);   
+    const breathIdx = useSharedValue(0);    
+
+      useEffect(() => {
+    let mounted = true;
+
+    const runStep = (i: number) => {
+      if (!mounted) return;
+      breathIdx.value = i;
+      const step = BREATH_STEPS[i];
+
+      setBreathLabel(step.label);
+
+      breathProg.value = 0;
+      breathProg.value = withTiming(
+        1,
+        { duration: step.duration, easing: Easing.inOut(Easing.quad) },
+        (finished) => {
+          'worklet';
+          if (finished) {
+            const next = (i + 1) % BREATH_STEPS.length;
+            runOnJS(runStep)(next);
+          }
+        }
+      );
+    };
+
+    runStep(0);
+    return () => { mounted = false; };
+  }, [BREATH_STEPS]);
+
+  const breathTextStyle = useAnimatedStyle(() => {
+  const p = breathProg.value;
+  let opacity = 0;
+  if (p <= 0.2)      opacity = p / 0.2;
+  else if (p >= 0.8) opacity = (1 - p) / 0.2;
+  else               opacity = 1;
+
+  const scale = 0.98 + 0.02 * Math.sin(p * Math.PI);
+
+  return { opacity, transform: [{ scale }] };
+});
 
   return (
     <View style={styles.screen}>
@@ -300,20 +431,23 @@ useFocusEffect(
         <View style={styles.topRow}>
           <Animated.View style={[styles.orbWrap, orbStyle]}>
             <LinearGradient colors={[BRAND, BRAND2]} style={styles.orb} start={{ x: 0.2, y: 0 }} end={{ x: 1, y: 1 }} />
+             <Animated.Text style={[styles.breathText, breathTextStyle]}>
+            {breathLabel}
+          </Animated.Text>
           </Animated.View>
 
-          <View style={styles.todayCard}>
-            <ProgressRing size={72} stroke={8} progress={progress} />
-            <View style={{ marginLeft: 12 }}>
-              <Text style={styles.todayLabel}>Today</Text>
-              <Text style={styles.todayValue}>
-                {todayCalmMinutes} / {todayGoal}m
-              </Text>
-              <Text style={styles.todayHint}>Keep it up</Text>
-            </View>
-          </View>
+        <View style={styles.todayCard}>
+        <ProgressRing size={72} stroke={8} progress={progress} showCheck={completed} />
+        <View style={{ marginLeft: 12 }}>
+          <Text style={styles.todayLabel}>Today</Text>
+          <Text style={styles.todayValue}>
+            {minutesPart}m {secondsPart}s / {todayGoalMin}m
+          </Text>
+          <Text style={styles.todayHint}>{hint}</Text>
         </View>
-
+      </View>
+        </View>
+        
         <View style={styles.rowCard}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <MaterialCommunityIcons name="motion-sensor" size={22} color="#E5E7EB" />
@@ -496,4 +630,12 @@ const styles = StyleSheet.create({
   modalCancel: { backgroundColor: 'rgba(255,255,255,0.06)' },
   modalConfirm: { backgroundColor: BRAND },
   modalBtnText: { fontWeight: '800' },
+  breathText: {
+  position: 'absolute',
+  textAlign: 'center',
+  color: '#E5E7EB',
+  fontWeight: '800',
+  fontSize: 12,        
+  letterSpacing: 0.5,
+},
 });

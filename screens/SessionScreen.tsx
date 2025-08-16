@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, TouchableOpacity, LayoutChangeEvent, DeviceEventEmitter } from 'react-native';
+import { View, Text, StyleSheet, Pressable, LayoutChangeEvent } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,64 +9,99 @@ import { createSession } from '../services/sessionService';
 import { useShakeIntensity } from '../hooks/useShakeIntensity';
 import MiniPlayer from '../components/MiniPlayer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { K_AUTOPLAY, K_HAPTICS, K_SENS, K_SHAKE, SETTINGS_EVENT, Sens, Prefs } from './SettingsScreen'; 
+import { Settings, Sens, Prefs } from '../services/settings';
+import FABBack, { FAB_BACK_SIZE } from '../components/FABBack';
 
 const BG = '#141D2A';
 const BRAND = '#7A00FF';
 const BRAND2 = '#9B5CFF';
-const STILLNESS_MS = 1500;
+const STILLNESS_MS = 2800;
+const CALM_FLOOR = 0.06; 
+const FAB_SHIFT_DOWN = 16;
 
-const TRACK = require('../assets/sounds/calm-music.mp3');
+const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+
+const DEFAULT_TRACK_ID = 'rain';
+
+const BUILT_IN_URIS: Record<string, string> = {
+  rain:       'https://firebasestorage.googleapis.com/v0/b/hushly-mobile.firebasestorage.app/o/rain.mp3?alt=media',
+  ocean:      'https://firebasestorage.googleapis.com/v0/b/hushly-mobile.firebasestorage.app/o/ocean.mp3?alt=media',
+  forest:     'https://firebasestorage.googleapis.com/v0/b/hushly-mobile.firebasestorage.app/o/forest.mp3?alt=media',
+  windchimes: 'https://firebasestorage.googleapis.com/v0/b/hushly-mobile.firebasestorage.app/o/wind-chimes.mp3?alt=media',
+};
+
+
+async function getPreferredAudio(): Promise<{ uri: string; id: string }> {
+  try {
+    let prefId = await AsyncStorage.getItem('preferredTrackId');
+    const prefUri = await AsyncStorage.getItem('preferredTrackUri');
+
+    if (prefId && !BUILT_IN_URIS[prefId]) {
+      prefId = null;
+      await AsyncStorage.removeItem('preferredTrackId');
+    }
+
+    if (prefId && BUILT_IN_URIS[prefId]) {
+      return { id: prefId, uri: BUILT_IN_URIS[prefId] };
+    }
+
+    if (prefUri) {
+      return { id: 'custom', uri: prefUri };
+    }
+
+    await AsyncStorage.setItem('preferredTrackId', DEFAULT_TRACK_ID);
+    const defUri = BUILT_IN_URIS[DEFAULT_TRACK_ID];
+    await AsyncStorage.setItem('preferredTrackUri', defUri);
+    return { id: DEFAULT_TRACK_ID, uri: defUri };
+  } catch {
+    const defUri = BUILT_IN_URIS[DEFAULT_TRACK_ID];
+    return { id: DEFAULT_TRACK_ID, uri: defUri };
+  }
+}
 
 type Phase = 'Inhale' | 'Hold' | 'Exhale';
 
 export default function SessionScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
 
-  const [prefs, setPrefs] = useState<Prefs>({
-    shake: true,
-    haptics: true,
-    autoplay: false,
-    sensitivity: 'med',
-  });
+const [prefs, setPrefs] = useState<Prefs>({
+  shake: true,
+  haptics: true,
+  autoplay: false,
+  sensitivity: 'med',
+  oneHand: false,   
+  hand: 'auto',     
+});
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const [s1, s2, s3, s4] = await Promise.all([
-          AsyncStorage.getItem(K_SHAKE),
-          AsyncStorage.getItem(K_HAPTICS),
-          AsyncStorage.getItem(K_AUTOPLAY),
-          AsyncStorage.getItem(K_SENS),
-        ]);
-        setPrefs({
-          shake: s1 != null ? s1 === '1' : true,
-          haptics: s2 != null ? s2 === '1' : true,
-          autoplay: s3 != null ? s3 === '1' : false,
-          sensitivity: (s4 === 'low' || s4 === 'high' ? s4 : 'med') as Sens,
-        });
-      } catch {}
-    })();
-    const sub = DeviceEventEmitter.addListener(SETTINGS_EVENT, (p: Prefs) => setPrefs(p));
-    return () => sub.remove();
-  }, []);
+const [miniH, setMiniH] = useState(0);
+const miniVisible = miniH > 8;
+const fabBottomOffset = miniVisible ? Math.max(0, (miniH - FAB_BACK_SIZE) / 2) : 0;
 
+  const thresholdMap: Record<Sens, { start: number; stop: number }> = {
+  low:  { start: 0.45, stop: 0.20 },
+  med:  { start: 0.30, stop: 0.12 },
+  high: { start: 0.20, stop: 0.08 },
+};
+
+useEffect(() => {
+  Settings.load().then((p) => setPrefs(p));
+  const unsub = Settings.subscribe(setPrefs);
+  return unsub;
+}, []);
 
   const map = {
-    low:  { start: 0.55, stop: 0.30 },
-    med:  { start: 0.40, stop: 0.18 },
-    high: { start: 0.28, stop: 0.12 },
+    low:  { start: 0.45, stop: 0.20 },
+    med:  { start: 0.30, stop: 0.12 },
+    high: { start: 0.20, stop: 0.08 },
   }[prefs.sensitivity];
 
-
   const { intensity, isShaking } = useShakeIntensity(prefs.shake, {
-    intervalMs: 55,
-    alpha: 0.22,
+    intervalMs: 45,
+    alpha: 0.18,
     startThreshold: map.start,
     stopThreshold: map.stop,
-    graceMs: 1200,
+    graceMs: 1000,
   });
-
 
   const sessionStartRef = useRef<number | null>(null);
   const activeStartRef = useRef<number | null>(null);
@@ -81,57 +116,81 @@ export default function SessionScreen({ navigation }: any) {
 
 
   const [peak, setPeak] = useState(0);
-  useEffect(() => setPeak((p) => Math.max(p, intensity)), [intensity]);
+  useEffect(() => {
+  const currentPct = clamp01(intensity / 1.2);
+  setPeak((p) => Math.max(p, currentPct));     
+  }, [intensity]);
+
+
+    useEffect(() => {
+      (async () => {
+        if (!prefs.autoplay) return;
+
+        const s = audioManager.getState();
+        const { id, uri } = await getPreferredAudio();
+
+        if (!s.playing || s.source?.id !== id) {
+          try {
+            await audioManager.playLoop(uri, typeof s.volume === 'number' ? s.volume : 0.55, id);
+          } catch (e) {
+            console.log('[audio] playLoop failed', e);
+          }
+        }
+      })();
+    }, [prefs.autoplay]);
+
 
 
   useEffect(() => {
-    (async () => {
-      if (!prefs.autoplay) return;
-      try { await audioManager.playLoop(TRACK, 0.55); } catch (e) { console.log('[audio] playLoop failed', e); }
-    })();
-  }, [prefs.autoplay]);
+  const now = Date.now();
+  const trulyStill = intensity < CALM_FLOOR;
 
+  if (isShaking) {
+    calmSinceRef.current = null;
 
-  useEffect(() => {
-    if (isShaking) {
-      calmSinceRef.current = null;
-      const now = Date.now();
-      if (sessionStartRef.current == null) sessionStartRef.current = now;
-      if (activeStartRef.current == null) activeStartRef.current = now;
-      hasShakenRef.current = true;
-      if (!tickIdRef.current) {
-        tickIdRef.current = setInterval(() => {
-          const base = stressedAccumRef.current;
-          const live = activeStartRef.current ? Date.now() - activeStartRef.current : 0;
-          setStressedMs(base + live);
-        }, 100);
-      }
-    } else {
-      if (activeStartRef.current != null) {
-        const now = Date.now();
-        stressedAccumRef.current += now - activeStartRef.current;
-        activeStartRef.current = null;
-      }
-      if (tickIdRef.current) {
-        clearInterval(tickIdRef.current);
-        tickIdRef.current = null;
-      }
-      setStressedMs(stressedAccumRef.current);
+    if (sessionStartRef.current == null) sessionStartRef.current = now;
+    if (activeStartRef.current == null)  activeStartRef.current  = now;
+    hasShakenRef.current = true;
 
-      if (hasShakenRef.current) {
-        const now = Date.now();
+    if (!tickIdRef.current) {
+      tickIdRef.current = setInterval(() => {
+        const base = stressedAccumRef.current;
+        const live = activeStartRef.current ? Date.now() - activeStartRef.current : 0;
+        setStressedMs(base + live);
+      }, 100);
+    }
+  } else {
+    if (activeStartRef.current != null) {
+      stressedAccumRef.current += now - activeStartRef.current;
+      activeStartRef.current = null;
+    }
+    if (tickIdRef.current) {
+      clearInterval(tickIdRef.current);
+      tickIdRef.current = null;
+    }
+    setStressedMs(stressedAccumRef.current);
+
+    if (hasShakenRef.current) {
+      if (trulyStill) {
         if (calmSinceRef.current == null) calmSinceRef.current = now;
+
         if (now - calmSinceRef.current >= STILLNESS_MS) {
           if (firstCalmRef.current == null) {
             firstCalmRef.current = stressedAccumRef.current;
-            if (prefs.haptics) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            if (prefs.haptics) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
           }
-          setShowResult(true);
+          setShowResult(true); 
         }
+      } else {
+        calmSinceRef.current = null;
       }
     }
-    return () => {};
-  }, [isShaking, prefs.haptics]);
+  }
+
+  return () => {};
+}, [isShaking, intensity, prefs.haptics]);
 
   useEffect(() => {
     return () => { if (tickIdRef.current) clearInterval(tickIdRef.current); };
@@ -189,7 +248,7 @@ export default function SessionScreen({ navigation }: any) {
   }, [intensity]);
   const arrowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: indX.value * (meterW - 20) }] }));
 
-  const peakPct = Math.max(0, Math.min(1, peak / 1.2));
+  const peakPct = clamp01(peak);
   const statusLabel = !hasShakenRef.current ? 'Ready' : isShaking ? 'Shaking' : 'Calm';
   const statusBg = !hasShakenRef.current ? 'rgba(255,255,255,0.08)' : isShaking ? '#F59E0B33' : '#10B98133';
   const statusDot = !hasShakenRef.current ? '#9CA3AF' : isShaking ? '#F59E0B' : '#10B981';
@@ -215,17 +274,38 @@ export default function SessionScreen({ navigation }: any) {
     setPeak(0);
   };
 
-  const finishAndSave = async () => {
-    if (activeStartRef.current != null) {
-      stressedAccumRef.current += Date.now() - activeStartRef.current;
-      activeStartRef.current = null;
-    }
-    const totalStressed = stressedAccumRef.current;
-    const started = sessionStartRef.current ?? Date.now();
-    const payload = { startedAt: started, relaxedAt: Date.now(), durationMs: totalStressed, timeToRelaxMs: firstCalmRef.current ?? totalStressed };
-    try { await createSession(payload); } catch (e) { console.log(e); }
-    navigation.goBack();
-  };
+    const finishAndSave = async () => {
+      if (activeStartRef.current != null) {
+        stressedAccumRef.current += Date.now() - activeStartRef.current;
+        activeStartRef.current = null;
+      }
+
+      const totalStressed = stressedAccumRef.current;
+      const started = sessionStartRef.current ?? Date.now();
+
+      const payload = {
+        startedAt: started,
+        relaxedAt: Date.now(),
+        durationMs: totalStressed,
+        timeToRelaxMs: firstCalmRef.current ?? totalStressed,
+        peakPct: clamp01(peak),  
+      };
+
+      console.log('[SessionScreen] ===== START SAVE =====');
+      console.log('[SessionScreen] Payload:', payload);
+
+      try {
+        const docId = await createSession(payload);  
+        console.log('[SessionScreen] SAVE SUCCESS — ID:', typeof docId === 'string' ? docId : '(no id returned)');
+      } catch (e) {
+        console.log('[SessionScreen] SAVE FAILED — Error:', e);
+      }
+
+      console.log('[SessionScreen] ===== END SAVE =====');
+
+      navigation.goBack();
+    };
+
 
   const onContinue = () => setShowResult(false);
   const bottomOffset = insets.bottom + 100;
@@ -240,9 +320,6 @@ export default function SessionScreen({ navigation }: any) {
     <View style={[s.screen, { paddingTop: insets.top + 8 }]}>
       <View style={s.headerRow}>
         <Animated.View style={[s.backWrap, backWrapStyle]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
-            <Ionicons name="arrow-back" size={22} color="#0F172A" />
-          </TouchableOpacity>
         </Animated.View>
         <Text style={s.title}>Shake to release tension</Text>
         <View style={[s.statusChip, { backgroundColor: statusBg }]}>
@@ -285,17 +362,35 @@ export default function SessionScreen({ navigation }: any) {
           <Pressable onPress={finishAndSave} style={[s.btn, { backgroundColor: BRAND }]}><Text style={s.btnText}>Save & Finish</Text></Pressable>
         </View>
       </View>
+      
+      <MiniPlayer
+        onHeight={setMiniH}
+        dockSide={prefs.hand === 'left' ? 'right' : 'left'} 
+        narrowWidth={280}
+        edgeMargin={12}
+      />
 
-      <MiniPlayer />
+    <FABBack
+      onPress={() => navigation.goBack()}
+      bottomOffset={
+        miniVisible
+          ? fabBottomOffset - FAB_SHIFT_DOWN 
+          : -FAB_SHIFT_DOWN + 20                
+      }
+    />
 
       {showResult && (
-        <ResultSheet
-          stressedMs={stressedMs}
-          firstCalmMs={firstCalmRef.current ?? stressedMs}
-          onContinue={onContinue}
-          onFinish={finishAndSave}
-          bottomOffset={bottomOffset}
-        />
+        <>
+          <View pointerEvents="auto" style={s.modalScrim} />
+
+          <ResultSheet
+            stressedMs={stressedMs}
+            firstCalmMs={firstCalmRef.current ?? stressedMs}
+            onContinue={onContinue}
+            onFinish={finishAndSave}
+            bottomOffset={bottomOffset}
+          />
+        </>
       )}
     </View>
   );
@@ -331,8 +426,8 @@ const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: BG },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 6, marginBottom: 6 },
   backWrap: {
-    width: 52, height: 52, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.92)',
-    alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, elevation: 8,
+    width: 52, height: 52, borderRadius: 16,
+    alignItems: 'center', justifyContent: 'center',
   },
   backBtn: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   title: { color: '#fff', fontSize: 16, fontWeight: '800' },
@@ -372,9 +467,17 @@ const s = StyleSheet.create({
   resultCard: {
     position: 'absolute', left: 18, right: 18, backgroundColor: '#0F172A',
     borderColor: '#1F2937', borderWidth: 1, borderRadius: 16, padding: 14,
-    shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 16, elevation: 16,
+    shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 16,
+    zIndex: 40,               
+    elevation: 40,           
   },
   resultTitle: { color: '#fff', fontSize: 16, fontWeight: '900', marginBottom: 6 },
   resultLine: { color: '#E5E7EB', marginTop: 2 },
   bold: { fontWeight: '900', color: '#fff' },
+  modalScrim: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 39,     
+    elevation: 39,  
+    backgroundColor: 'transparent', 
+  },
 });

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, TouchableOpacity, StyleSheet, Dimensions, Text, BackHandler } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Dimensions, Text, BackHandler, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import HushlyLogo from '../assets/HushlyLogo2.png';
 import Animated, { useSharedValue, withTiming, useAnimatedStyle, withSpring, withDelay, interpolate } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import SignInForm from '../components/SignInForm';
 import SignUpForm from '../components/SignUpForm';
+import FABBack from '../components/FABBack';
 
 const BG = '#141D2A';
 const W = Dimensions.get('window').width;
@@ -50,8 +51,10 @@ export default function AuthScreen({ navigation, route }: any) {
   const titleY = useSharedValue(10);
   const subOpacity = useSharedValue(0);
   const subY = useSharedValue(8);
-  const underline = useSharedValue(0);      
-
+  const underline = useSharedValue(0); 
+  
+  const logoScale = useSharedValue(0.9);
+  const logoOpacity = useSharedValue(0);
 
   useEffect(() => {
     backPeek.value      = withTiming(0,   { duration: 420 });
@@ -62,6 +65,16 @@ export default function AuthScreen({ navigation, route }: any) {
     underline.value     = withDelay(260, withTiming(1, { duration: 380 }));
   }, []);
 
+    useEffect(() => {
+    logoOpacity.value = withDelay(60, withTiming(1, { duration: 260 }));
+    logoScale.value   = withTiming(1, { duration: 260 });
+  }, []);
+
+  useEffect(() => {
+    logoScale.value = withTiming(0.96, { duration: 120 }, () => {
+      logoScale.value = withSpring(1.02, { mass: 0.4, damping: 10, stiffness: 160 });
+    });
+  }, [mode]);
 
   useEffect(() => {
     titleOpacity.value = withTiming(0, { duration: 120 }, () => {
@@ -96,58 +109,58 @@ export default function AuthScreen({ navigation, route }: any) {
     transform: [{ scaleX: underline.value }],
     opacity: underline.value,
   }));
+  const logoAnimStyle = useAnimatedStyle(() => ({
+  opacity: logoOpacity.value,
+  transform: [{ scale: logoScale.value }],
+  }));
 
   const title = mode === 'login' ? 'Sign in' : 'Sign up';
   const subtitle = mode === 'login' ? 'Welcome back' : 'Create your account';
 
-  return (
-    <View style={styles.screen}>
-      <StatusBar style="light" translucent />
-      <View style={[styles.headerWrap, { paddingTop: insets.top }]}>
-        <View style={styles.headerRow}>
-          <Animated.View style={[styles.backWrap, backWrapStyle]}>
-            <TouchableOpacity
-              onPress={goOnboarding}
-              onPressIn={() => { backPress.value = withSpring(1, { mass: 0.3, damping: 12 }); }}
-              onPressOut={() => { backPress.value = withSpring(0, { mass: 0.3, damping: 12 }); }}
-              style={styles.backBtn}
-              accessibilityRole="button"
-              accessibilityLabel="Go back to onboarding"
-            >
-              <Ionicons name="arrow-back" size={22} color="#0F172A" />
-            </TouchableOpacity>
-          </Animated.View>
-          <View style={styles.titleCol}>
-            <Animated.Text style={[styles.headerTitle, titleStyle]} numberOfLines={1}>
-              {title}
-            </Animated.Text>
+return (
+  <View style={styles.screen}>
+    <StatusBar style="light" translucent />
 
-            <Animated.View style={subStyle}>
-              <Text style={styles.headerSub}>{subtitle}</Text>
-              <Animated.View style={[styles.underline, underlineStyle]} />
-            </Animated.View>
-          </View>
-          <View style={{ width: 52 }} />
+    {/* HEADER (no back here anymore) */}
+    <View style={[styles.headerWrap, { paddingTop: insets.top }]}>
+      <View style={styles.headerRow}>
+        {/* (removed backWrap) */}
+        <Animated.Image source={HushlyLogo} style={[styles.logo, logoAnimStyle]} resizeMode="contain" />
+        <View style={styles.titleCol}>
+          <Animated.Text style={[styles.headerTitle, titleStyle]} numberOfLines={1}>
+            {title}
+          </Animated.Text>
+
+          <Animated.View style={subStyle}>
+            <Text style={styles.headerSub}>{subtitle}</Text>
+            <Animated.View style={[styles.underline, underlineStyle]} />
+          </Animated.View>
         </View>
-      </View>
-      <View style={{ flex: 1, paddingTop: insets.top + HEADER_H }}>
-        <Animated.View style={[StyleSheet.absoluteFill, leftStyle]}>
-          <SignInForm
-            onSwitchToSignup={() => switchTo('signup')}
-            onSignedIn={() => navigation.reset({ index: 0, routes: [{ name: 'Main' }] })}
-            navigation={navigation}
-          />
-        </Animated.View>
-        <Animated.View style={[StyleSheet.absoluteFill, rightStyle]}>
-          <SignUpForm
-            onSwitchToLogin={() => switchTo('login')}
-            onSignedUp={() => navigation.reset({ index: 0, routes: [{ name: 'Main' }] })}
-            navigation={navigation}
-          />
-        </Animated.View>
+        <View style={{ width: 52 }} />
       </View>
     </View>
-  );
+
+    <View style={{ flex: 1, paddingTop: insets.top + HEADER_H }}>
+      <Animated.View style={[StyleSheet.absoluteFill, leftStyle]}>
+        <SignInForm
+          onSwitchToSignup={() => switchTo('signup')}
+          onSignedIn={() => navigation.reset({ index: 0, routes: [{ name: 'Main' }] })}
+          navigation={navigation}
+        />
+      </Animated.View>
+
+      <Animated.View style={[StyleSheet.absoluteFill, rightStyle]}>
+        <SignUpForm
+          onSwitchToLogin={() => switchTo('login')}
+          onSignedUp={() => navigation.reset({ index: 0, routes: [{ name: 'Main' }] })}
+          navigation={navigation}
+        />
+      </Animated.View>
+    </View>
+
+    <FABBack onPress={goOnboarding} />
+  </View>
+);
 }
 
 const styles = StyleSheet.create({
@@ -165,8 +178,8 @@ const styles = StyleSheet.create({
     height: HEADER_H,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    gap: 10,
+    paddingHorizontal: 16, // a bit more space
+    gap: 14,               // more space between logo and title block
   },
   backWrap: {
     width: 52,
@@ -190,11 +203,12 @@ const styles = StyleSheet.create({
   titleCol: {
     flex: 1,
     gap: 2,
+    marginLeft: 6, 
   },
   headerTitle: {
     color: '#FFFFFF',
     fontWeight: '900',
-    fontSize: 22,
+    fontSize: 24,
     letterSpacing: 0.2,
     textAlign: 'left',
   },
@@ -211,4 +225,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#7A00FF',
     transform: [{ scaleX: 0 }],
   },
+  logo: {
+    width: 48,  
+    height: 48,
+    marginRight: -5,
+    marginLeft: 14, 
+  },
+
+
 });

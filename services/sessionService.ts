@@ -19,6 +19,7 @@ export type SessionCreate = {
   durationMs: number;
   timeToRelaxMs: number;
   notes?: string;
+  peakPct?: number;  
 };
 
 export type RelaxSession = {
@@ -29,6 +30,7 @@ export type RelaxSession = {
   durationMs: number;
   timeToRelaxMs: number;
   notes?: string;
+  peakPct?: number | null;  
   createdAt: Timestamp;
   updatedAt: Timestamp;
 };
@@ -43,6 +45,8 @@ export async function createSession(data: SessionCreate) {
   const user = auth.currentUser;
   if (!user) throw new Error('Not signed in');
 
+  const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+
   const payload: Omit<RelaxSession, 'id'> = {
     uid: user.uid,
     startedAt: Timestamp.fromMillis(data.startedAt),
@@ -50,6 +54,10 @@ export async function createSession(data: SessionCreate) {
     durationMs: Math.max(0, Math.floor(data.durationMs || 0)),
     timeToRelaxMs: Math.max(0, Math.floor(data.timeToRelaxMs || 0)),
     notes: data.notes ?? '',
+    peakPct:
+      typeof data.peakPct === 'number' && isFinite(data.peakPct)
+        ? clamp01(data.peakPct)      
+        : null,
     createdAt: serverTimestamp() as any,
     updatedAt: serverTimestamp() as any,
   };
@@ -57,6 +65,7 @@ export async function createSession(data: SessionCreate) {
   const ref = await addDoc(userSessionsCol(user.uid), payload as any);
   return ref.id;
 }
+
 
 export async function listMySessions(): Promise<RelaxSession[]> {
   const auth = getAuth();
