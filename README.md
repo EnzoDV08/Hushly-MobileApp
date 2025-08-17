@@ -14,9 +14,9 @@
 
 **Hushly** isn’t just an app. It’s a pocket-sized sanctuary. Thoughtfully designed using motion, sensors, and mood — Hushly transforms your phone into a calm companion for those moments when the world feels loud.
 
-![Mockup Image](./ReadMeAssets/mockup1.jpg)
-![Mockup Image](./ReadMeAssets/mockup2.jpg)
-![Mockup Image](./ReadMeAssets/mockup3.jpg)
+![Mockup Image](./assets/demo.gif)
+![Mockup Image](./assets/Mockup.png)
+
 
 ---
 
