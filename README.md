@@ -173,11 +173,7 @@ npx expo start --tunnel
 
 Here’s a peek into the calming UI experience:
 
-![Screenshot](./assets/Screenshot1.jpg)
-![Screenshot](./assets/screenshot2.jpeg)
-![Screenshot](./assets/screenshot3.jpeg)
-![Screenshot](./assets/screenshot4.jpeg)
-![Screenshot](./assets/screenshot5.jpeg)
+![Screenshot](./assets/Screenshot1.png)
 
 ---
 
