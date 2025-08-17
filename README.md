@@ -1,5 +1,5 @@
 
-![Hushly Header Image](./ReadMeAssets/Hushly-Banner.png)
+![Hushly Header Image](./Asset/Hushly-Banner.png)
 <a id="readme-top"></a>
 
 <!-- Project Shields -->
