@@ -1,4 +1,3 @@
-
 ![Hushly Header Image](./assets/Hushly-Banner.png)
 <a id="readme-top"></a>
 
@@ -15,9 +14,9 @@
 
 **Hushly** isn’t just an app. It’s a pocket-sized sanctuary. Thoughtfully designed using motion, sensors, and mood — Hushly transforms your phone into a calm companion for those moments when the world feels loud.
 
-![Mockup Image](./ReadMeAssets/mockup1.jpeg)
-![Mockup Image](./ReadMeAssets/mockup2.jpeg)
-![Mockup Image](./ReadMeAssets/mockup3.jpeg)
+![Mockup Image](./ReadMeAssets/mockup1.jpg)
+![Mockup Image](./ReadMeAssets/mockup2.jpg)
+![Mockup Image](./ReadMeAssets/mockup3.jpg)
 
 ---
 
@@ -174,11 +173,11 @@ npx expo start --tunnel
 
 Here’s a peek into the calming UI experience:
 
-![Screenshot](./ReadMeAssets/screenshot1.jpeg)
-![Screenshot](./ReadMeAssets/screenshot2.jpeg)
-![Screenshot](./ReadMeAssets/screenshot3.jpeg)
-![Screenshot](./ReadMeAssets/screenshot4.jpeg)
-![Screenshot](./ReadMeAssets/screenshot5.jpeg)
+![Screenshot](./assets/Screenshot1.jpg)
+![Screenshot](./assets/screenshot2.jpeg)
+![Screenshot](./assets/screenshot3.jpeg)
+![Screenshot](./assets/screenshot4.jpeg)
+![Screenshot](./assets/screenshot5.jpeg)
 
 ---
 
